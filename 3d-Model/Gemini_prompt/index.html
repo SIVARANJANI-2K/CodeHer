@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sketch Describer</title>
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 600px;
+      margin: 50px auto;
+      text-align: center;
+    }
+    input[type="file"] {
+      margin-bottom: 20px;
+    }
+    #result {
+      margin-top: 30px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h2>Upload Your Sketch (PNG)</h2>
+  <form id="uploadForm">
+    <input type="file" id="image" accept="image/png" required />
+    <br />
+    <button type="submit">Generate Prompt</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('uploadForm').addEventListener('submit', function (e) {
+      e.preventDefault();  // Prevent page reload
+  
+      const fileInput = document.getElementById('image');
+      const formData = new FormData();
+      formData.append('image', fileInput.files[0]);
+  
+      fetch('/generate-prompt', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('result').innerText = data.description || data.error;
+      })
+      .catch(err => {
+        document.getElementById('result').innerText = 'Fetch error: ' + err;
+      });
+    });
+  </script>
+  
+    
+</body>
+</html>
