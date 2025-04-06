@@ -1,120 +1,147 @@
-import React, { useRef,useState } from 'react';
-import { Tldraw} from '@tldraw/tldraw';
+import React, { useRef, useState } from 'react';
+import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
-import axios from 'axios';
-import ModelViewer from './ModelViewer';
+import ModelViewer from './ModelViewer'; // adjust the path as needed
+
 
 function DrawingCanvas() {
   const editorRef = useRef(null); // store editor instance
-  const [modelUrl, setModelUrl] = useState('https://img.theapi.app/temp/c486b91f-8381-4c4d-9c58-39ce27d18fa4.glb')
-  const handleImproveDrawing = async () => {
-    const editor = editorRef.current;
-    if (!editor) {
-      console.error("Editor not available yet.");
-      return;
-    }
+  const [generatedImage, setGeneratedImage] = useState(null);
+  const [modelUrl, setModelUrl] = useState('https://img.theapi.app/temp/c486b91f-8381-4c4d-9c58-39ce27d18fa4.glb');
+  const [uploadedFilename, setUploadedFilename] = useState(null);
 
-    try {
-      // Get the PNG blob
-      const blob = await editor.exportImage('png', {
-        background: true, // or false if you want transparent background
-        maxWidth: 1024, // optional size control
-      });
-      
-
-      // Convert to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-
-      reader.onloadend = async () => {
-        const base64data = reader.result.split(',')[1]; // Remove header
-
-        console.log("Sending Base64 data to Gemini AI...");
-
-        const API_KEY = "AIzaSyAbkhcGkTunotds5crYdxNpkOIj_32nSrg"; // Replace with your API key
-        const URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5:generateContent?key=${API_KEY}`;
-
-        try {
-          const response = await axios.post(URL, {
-            contents: [{
-              parts: [
-                { text: "Enhance this 2D sketch to look more refined and detailed." },
-                { inline_data: { mime_type: "image/png", data: base64data } }
-              ]
-            }]
-          });
-
-          const enhancedImage = response.data.candidates[0].content.parts[0].inline_data.data;
-          console.log("Enhanced image received!");
-
-          // Convert back to displayable format
-          const imgSrc = `data:image/png;base64,${enhancedImage}`;
-          const img = new Image();
-          img.src = imgSrc;
-          document.body.appendChild(img); // Append enhanced image to document
-
-        } catch (err) {
-          console.error("Error sending image to Gemini:", err);
-          alert("Enhancement failed!");
+  const handleImproveDrawing = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+  
+    input.onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        alert("Please select an image.");
+        return;
+      }
+  
+      try {
+        const formData = new FormData();
+        formData.append('file', file); // Key should match what server expects
+        formData.append('prompt', "Analyze and generate a clean, flat 2D color illustration. Identify the pose and individual elements such as body parts, objects, or clothing. Assign appropriate, realistic colors to each component (e.g., skin tone, hair, clothing, objects), while preserving the proportions and structure. The background must be plain white. Avoid adding shadows, lighting effects, gradients, or depth. Focus on clean outlines, solid fill colors, and a flat, illustrative art style similar to digital cartoons or 2D vector drawings."); // Make sure key matches server expectation
+  
+        // Debug: Log FormData contents
+        for (let [key, value] of formData.entries()) {
+          console.log(key, value);
         }
-      };
-    } catch (error) {
-      console.error("Export error:", error);
-      alert("Failed to export drawing");
-    }
+  
+        const response = await fetch('https://537f-35-230-109-251.ngrok-free.app/upload', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+  
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+        }
+  
+        const responseData = await response.json(); // Assuming the server responds with JSON containing an image URL
+        console.log("Backend Response Data:", responseData);
+        const base64Image = responseData.image_base64; // Get the base64 image data from the response
+        const imageUrl = `data:image/png;base64,${base64Image}`; // Create a full image source URL from the base64 string
+        setGeneratedImage(imageUrl);  
+        setUploadedFilename(base64Image); // <-- store filename
+
+      } catch (err) {
+        console.error('Error generating image:', err);
+        alert(`Failed to generate image: ${err.message}`);
+      }
+    };
+  
+    input.click();
   };
 
-  const handleMake3D = async () => {
+  const handleMake3D = async() => {
+    if (!uploadedFilename) {
+      alert("No filename found. Please generate the image first.");
+      return;
+    }
     try {
-      const res=await fetch("http://127.0.0.1:5000/send-local-image", {
+      const res=await fetch("https://537f-35-230-109-251.ngrok-free.app/send-local-image", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ filename: uploadedFilename }),
       });
       const data = await res.json()
-      if (data.modelUrl) {
+      console.log("URL:",data.model_url)
+      if (data.model_url) {
         alert("3D model ready!")
-        setModelUrl(data.modelUrl)
+        setModelUrl(data.model_url)
       } else {
         alert("Model generation failed.")
         console.error(data)
       }
       alert("Local image sent from Python successfully!");
-    } catch (error) {
+
+    } 
+    
+    
+    catch (error) {
       console.error("Error sending image:", error);
       alert("Failed to send image.");
     }
   };
-  
-  
-  
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <div style={{ padding: '10px', display: 'flex', gap: '10px', background: '#f0f0f0' }}>
-        <button 
-          onClick={handleImproveDrawing}
-          style={{ padding: '8px 16px', background: '#4c68d7', color: 'white', border: 'none', borderRadius: '4px' }}
-        >
-          Improve Drawing
-        </button>
-        <button 
-          onClick={handleMake3D}
-          style={{ padding: '8px 16px', background: '#4c68d7', color: 'white', border: 'none', borderRadius: '4px' }}
-        >
-          Make 3D
-        </button>
-      </div>
-      <div style={{ flex: 1 }}>
-        <Tldraw
-          onMount={(editor) => {
-            editorRef.current = editor; // store editor instance in ref
-          }}
-        />
-      </div>
+  <div style={{ display: 'flex', flexDirection: 'column', height: '150vh' }}>
+  <div style={{ padding: '10px', display: 'flex', gap: '10px', background: '#f0f0f0' }}>
+    <button 
+      onClick={handleImproveDrawing}
+      style={{ padding: '8px 16px', background: '#4c68d7', color: 'white', border: 'none', borderRadius: '4px' }}
+    >
+      Improve Drawing
+    </button>
+    <button 
+      onClick={handleMake3D}
+      style={{ padding: '8px 16px', background: '#4c68d7', color: 'white', border: 'none', borderRadius: '4px' }}
+    >
+      Make 3D
+    </button>
+  </div>
+
+  {/* Top 50% - Canvas */}
+  <div style={{ height: '50%' }}>
+    <Tldraw
+      onMount={(editor) => {
+        editorRef.current = editor;
+      }}
+    />
+  </div>
+
+  {/* Bottom 50% - 3D Model + Image */}
+  {(modelUrl || generatedImage) && (
+    <div style={{  height: '50%', display: 'flex', justifyContent: 'space-between', padding: '20px' }}>
       {modelUrl && (
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, marginRight: '10px' }}>
           <ModelViewer modelUrl={modelUrl} />
         </div>
       )}
+      {generatedImage && (
+        <div style={{ flex: 1, marginLeft: '10px', textAlign: 'center' }}>
+          <h3>Generated Image</h3>
+          <img
+            src={generatedImage}
+            alt="Generated"
+            style={{ width: '100%', maxHeight: '100%', objectFit: 'contain' }}
+          />
+        </div>
+      )}
     </div>
+  )}
+</div>
+
   );
 }
 
