@@ -1,4 +1,5 @@
 # Sketch2Reality: From Simple Sketch to 2D & 3D Magic
+Got Second Runner-Up for this project in CODHER'25, a National-Level Inter-College Women's only 24 Hour Hackathon.
 
 > Generate realistic 2D and 3D models from hand-drawn sketches using AI!
 
