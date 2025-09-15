@@ -15,10 +15,10 @@ Got Second Runner-Up Prize for this project in CODHER'25, a National-Level Inter
 
 | Layer         | Technology       |
 |---------------|------------------|
-|  Frontend   | React            |
+|  Frontend   | React,tldraw            |
 | Backend    | Flask            |
 | AI Models  | Stable Diffusion, ControlNet |
-| APIs       | PiAPI, Gemini API |
+| APIs       | TrellisAPI, Gemini API |
 
 ---
 
